@@ -13,10 +13,10 @@ wifi_timer.init(period=wifi.check_delay*1000, mode=Timer.PERIODIC, callback=lamb
 
 
 updater = Updater('/config/updater.txt')
-updater_timer = Timer(-1)
-updater_timer.init(period=updater.loop_rate*1000, mode=Timer.PERIODIC, callback=lambda t: updater.loop())
+#updater_timer = Timer(-1)
+#updater_timer.init(period=updater.loop_rate*1000, mode=Timer.PERIODIC, callback=lambda t: updater.loop())
 
 
 switch = SwitchReader('/config/switch.txt')
-updater_timer = Timer(-1)
-updater_timer.init(period=switch.switch_update_period, mode=Timer.PERIODIC, callback=lambda t: switch.read_switch())
+#updater_timer = Timer(-1)
+#updater_timer.init(period=switch.switch_update_period, mode=Timer.PERIODIC, callback=lambda t: switch.read_switch())
