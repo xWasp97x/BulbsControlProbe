@@ -71,7 +71,7 @@ class Updater:
 				file.write('default')
 			return 'default'
 
-	def read_message(self, topic: str, msg: str) -> (str, []):
+	def read_message(self, topic: str, msg: str):
 		try:
 			self.logger.log('DEBUG', 'Updater', 'Reading update json')
 			msg_json = json.loads(msg)
@@ -177,9 +177,18 @@ class Updater:
 			self.logger.log('ERROR', 'Updater', "Can't connect to the broker; {}".format(e))
 		return False
 
+	def wait_msg(self):
+		tries = 10  # 100ms/try
+		self.logger.log('DEBUG', 'Updater', 'Waiting for message...')
+		for _ in range(tries):
+			self.mqtt_client.check_msg()
+			time.sleep(0.1)
+		self.logger.log('WARNING', 'Updater', 'Timeout waiting for message.')
+
 	def loop(self):
 		if not self.connect_to_broker():
 			self.logger.log('ERROR', 'Updater', 'Not connected to broker, skipping...')
 			return
 		self.send_installed_tag()
-		self.mqtt_client.subscribe(topic=self.personal_topic, socket_timeout=3)  # Wait for new update json
+		self.mqtt_client.subscribe(topic=self.personal_topic, socket_timeout=3)
+		self.wait_msg()
