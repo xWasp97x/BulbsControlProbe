@@ -44,7 +44,7 @@ class Updater:
 		self.logger.log('DEBUG', 'Updater', 'Receiving ' + file)
 		with open(self.configs['download_path'] + file, 'w') as f:
 			while True:
-				data = conn.recv(1024)
+				data = conn.recv(100)
 				if not data:
 					break
 				f.write(data)
