@@ -11,6 +11,7 @@ import usocket as socket
 LOOP_RATE = 60
 assert LOOP_RATE > 40
 
+# TODO: check "updating" attribute usefulness
 
 class Updater:
 	def __init__(self, config_file):
@@ -90,8 +91,9 @@ class Updater:
 
 	def local_ip(self) -> str:
 		w = network.WLAN()
-		if not w.isconnected():
-			return None
+		while not w.isconnected():
+			self.logger.log('WARNING', 'Updater', 'Waiting WiFi connection to retrieve loacal ip...')
+			time.sleep(1)
 		ip = w.ifconfig()[0]
 		return ip
 
