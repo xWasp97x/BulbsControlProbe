@@ -162,12 +162,8 @@ class Updater:
 
 	def apply_update(self, tag: str):
 		download_path = self.configs['download_path']
-		if download_path[-1] == '/':
-			download_path = download_path[:-1]
-		files = os.listdir(download_path)
+		files = os.listdir(self.download_folder())
 		filesnames = files
-		if download_path[-1] != '/':
-			download_path += '/'
 		files = [download_path + file for file in filesnames]
 		self.logger.log('INFO', 'Updater', 'Applying update {}...'.format(tag))
 		for idx, file in enumerate(files):
@@ -217,10 +213,13 @@ class Updater:
 		except Exception as e:
 			self.logger.log('ERROR', 'Updater', "Can't send installed tag; {}".format(e))
 
+	def download_folder(self):
+		return self.configs['download_path'][:-1]
+
 	def clean_download_folder(self):
 		self.logger.log('DEBUG', 'Updater', 'Cleaning download folder...')
 		download_path = self.configs['download_path']
-		files = os.listdir(download_path)
+		files = os.listdir(self.download_folder())
 		filesnames = files
 		files = [download_path + file for file in filesnames]
 		for idx, file in enumerate(files):
