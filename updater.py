@@ -6,12 +6,13 @@ import os
 import time
 import network
 from machine import Timer, reset
-import usocket as socket
+import socket
 
 LOOP_RATE = 60
 assert LOOP_RATE > 40
 
 # TODO: check "updating" attribute usefulness
+
 
 class Updater:
 	def __init__(self, config_file):
@@ -26,37 +27,80 @@ class Updater:
 		self.updating = False
 		self.new_tag = None
 		self.timer = None
+		self.message_read = False
 		self.ip = self.local_ip()
 		self.personal_topic = self.ip + '_updates'
-		self.init_timer()
+		self.init_download_folder()
+		self.loop()
+
+	def init_download_folder(self):
+		self.logger.log('DEBUG', 'Updater', 'Creating download folder')
+		download_path = self.configs['download_path']
+		try:
+			os.mkdir(download_path)
+		except:
+			try:
+				files = os.listdir(download_path)
+				for file in files:
+					os.remove(download_path + file)
+			except:
+				return False
+		return True
 
 	def receive_files(self, files):
 		self.logger.log('DEBUG', 'Updater', 'Receiving: ' + ' '.join(files))
-		with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-			s.bind(('', '50000'))
+		try:
+			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		except Exception as e:
+			self.logger.log('ERROR', 'Updater', "Can't create server socket; {}".format_map(e))
+			return False
+		try:
+			try:
+				s.bind(('', 50000))
+			except Exception as e:
+				self.logger.log('ERROR', 'Updater', "Can't bind the socket; {}".format(e))
+				return False
+			s.listen(1)
 			for file in files:
-				s.listen()
 				conn, _ = s.accept()
-				self.receive_file(file, conn)
-		self.logger.log('DEBUG', 'Updater', 'Files received.')
+				if not self.receive_file(file, conn):
+					raise Exception("Can't receive " + file)
+			self.logger.log('DEBUG', 'Updater', 'Files received.')
+			return True
+		except Exception as e:
+			self.logger.log('ERROR', 'Updater', "Can't receive files; {}".format(e))
+			return False
+		finally:
+			try:
+				s.close()
+			except:
+				pass
 
 	def receive_file(self, file, conn):
-		self.logger.log('DEBUG', 'Updater', 'Receiving ' + file)
-		with open(self.configs['download_path'] + file, 'w') as f:
-			while True:
-				data = conn.recv(100)
-				if not data:
-					break
-				f.write(data)
+		complete_path = self.configs['download_path'] + file
+		self.logger.log('DEBUG', 'Updater', 'Saving {} in {}'.format(file, complete_path))
+		with open(complete_path, 'wb') as f:
+			try:
+				while True:
+					data = conn.recv(100)
+					if not data:
+						break
+					f.write(data)
+			except Exception as e:
+				self.logger.log('ERROR', 'Updater', 'Error receiving a chunk')
+				return False
+			finally:
+				conn.close()
 		self.logger.log('DEBUG', 'Updater', file + ' received.')
+		return True
 
 	def init_timer(self):
-		self.loop()
 		self.timer = Timer(-1)
-		self.timer.init(period=LOOP_RATE*1000, mode=Timer.PERIODIC, callback=lambda t: self.loop())
+		self.timer.init(period=LOOP_RATE*1000, mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
 
 	def deinit_timer(self):
-		self.timer.deinit()
+		if isinstance(self.timer, Timer):
+			self.timer.deinit()
 		self.timer = None
 
 	def load_installed_tag(self) -> str:
@@ -71,7 +115,8 @@ class Updater:
 				file.write('default')
 			return 'default'
 
-	def read_message(self, topic: str, msg: str):
+	def read_message(self, topic: str, msg: str, *args):
+		"""
 		try:
 			self.logger.log('DEBUG', 'Updater', 'Reading update json')
 			msg_json = json.loads(msg)
@@ -84,6 +129,24 @@ class Updater:
 			return tag, files
 		except Exception as e:
 			self.logger.log('ERROR', 'Updater', 'Error reading update json; {}'.format(e))
+			return None, None
+		"""
+		self.message_read = True
+		if len(msg) == 0:
+			return
+		self.logger.log('DEBUG', 'Updater', 'Reading update json')
+		try:
+			msg_json = json.loads(msg)
+		except ValueError as ve:
+			self.logger.log('ERROR', 'Updater', 'Error reading message, message: {}; {}'.format(msg, ve))
+		tag = msg_json['tag']
+		files = msg_json['files']
+		self.logger.log('DEBUG', 'Updater', 'Update json read')
+		self.updating = True
+		if self.receive_files(files):
+			self.complete_update(tag)
+			return tag, files
+		else:
 			return None, None
 
 	def reset_retain(self, topic: str):
@@ -99,6 +162,8 @@ class Updater:
 
 	def apply_update(self, tag: str):
 		download_path = self.configs['download_path']
+		if download_path[-1] == '/':
+			download_path = download_path[:-1]
 		files = os.listdir(download_path)
 		filesnames = files
 		files = [download_path + file for file in filesnames]
@@ -115,6 +180,7 @@ class Updater:
 		self.update_installed_tag(tag)
 		self.send_installed_tag()
 		self.clean_download_folder()
+		self.reset_retain()
 		self.logger.log('WARNING', 'Updater', 'Rebooting in 3 seconds to apply the update...')
 		time.sleep(3)
 		self.logger.log('WARNING', 'Updater', 'Rebooting...')
@@ -178,12 +244,15 @@ class Updater:
 		return False
 
 	def wait_msg(self):
-		tries = 10  # 100ms/try
+		timeout = 3
+		tries = int(timeout/0.5)  # 100ms/try
 		self.logger.log('DEBUG', 'Updater', 'Waiting for message...')
-		for _ in range(tries):
+		i = 0
+		while i < tries and not self.message_read:
 			self.mqtt_client.check_msg()
-			time.sleep(0.1)
-		self.logger.log('WARNING', 'Updater', 'Timeout waiting for message.')
+			time.sleep(0.5)
+		if not self.message_read:
+			self.logger.log('WARNING', 'Updater', 'Timeout waiting for message.')
 
 	def loop(self):
 		if not self.connect_to_broker():
@@ -191,4 +260,6 @@ class Updater:
 			return
 		self.send_installed_tag()
 		self.mqtt_client.subscribe(topic=self.personal_topic, socket_timeout=3)
+		self.message_read = False
 		self.wait_msg()
+		self.init_timer()

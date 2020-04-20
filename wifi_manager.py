@@ -17,7 +17,7 @@ class WifiManager:
 		configs = self.config_loader.load_configuration('check_delay', 'mqtt_conf_file')
 		self.check_delay = int(configs['check_delay'])
 		mqtt_conf_file = configs['mqtt_conf_file']
-		self.logger = MyLogger(mqtt=True, mqtt_conf=mqtt_conf_file)
+		self.logger = MyLogger(mqtt=False, mqtt_conf=mqtt_conf_file)
 		self.networks_file = networks_file
 
 	def scan(self):
