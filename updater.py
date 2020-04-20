@@ -166,6 +166,8 @@ class Updater:
 			download_path = download_path[:-1]
 		files = os.listdir(download_path)
 		filesnames = files
+		if download_path[-1] != '/':
+			download_path += '/'
 		files = [download_path + file for file in filesnames]
 		self.logger.log('INFO', 'Updater', 'Applying update {}...'.format(tag))
 		for idx, file in enumerate(files):
