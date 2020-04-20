@@ -180,7 +180,7 @@ class Updater:
 		self.update_installed_tag(tag)
 		self.send_installed_tag()
 		self.clean_download_folder()
-		self.reset_retain()
+		self.reset_retain(self.personal_topic)
 		self.logger.log('WARNING', 'Updater', 'Rebooting in 3 seconds to apply the update...')
 		time.sleep(3)
 		self.logger.log('WARNING', 'Updater', 'Rebooting...')
