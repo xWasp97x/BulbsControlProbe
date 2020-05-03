@@ -116,38 +116,23 @@ class Updater:
 			return 'default'
 
 	def read_message(self, topic: str, msg: str, *args):
-		"""
 		try:
+			self.message_read = True
+			if len(msg) == 0:
+				return
 			self.logger.log('DEBUG', 'Updater', 'Reading update json')
-			msg_json = json.loads(msg)
+			try:
+				msg_json = json.loads(msg)
+			except ValueError as ve:
+				self.logger.log('ERROR', 'Updater', 'Error reading message, message: {}; {}'.format(msg, ve))
 			tag = msg_json['tag']
 			files = msg_json['files']
 			self.logger.log('DEBUG', 'Updater', 'Update json read')
 			self.updating = True
-			self.receive_files(files)
-			self.complete_update(tag)
-			return tag, files
+			if self.receive_files(files):
+				self.complete_update(tag)
 		except Exception as e:
 			self.logger.log('ERROR', 'Updater', 'Error reading update json; {}'.format(e))
-			return None, None
-		"""
-		self.message_read = True
-		if len(msg) == 0:
-			return
-		self.logger.log('DEBUG', 'Updater', 'Reading update json')
-		try:
-			msg_json = json.loads(msg)
-		except ValueError as ve:
-			self.logger.log('ERROR', 'Updater', 'Error reading message, message: {}; {}'.format(msg, ve))
-		tag = msg_json['tag']
-		files = msg_json['files']
-		self.logger.log('DEBUG', 'Updater', 'Update json read')
-		self.updating = True
-		if self.receive_files(files):
-			self.complete_update(tag)
-			return tag, files
-		else:
-			return None, None
 
 	def reset_retain(self, topic: str):
 		self.mqtt_client.publish(topic=topic, msg='', retain=True)
