@@ -12,7 +12,7 @@ class SwitchReader:
 		config_loader = ConfigurationLoader(config_file)
 		configs = config_loader.load_configuration('mqtt_broker', 'mqtt_topic', 'mqtt_id', 'switch_pin', 'switch_update_period')
 		self.config_file = config_file
-		self.switch_update_period = float(configs['switch_update_period'])
+		self.switch_update_period = int(configs['switch_update_period'])
 		self.mqtt_client = MQTTClient(configs['mqtt_id'], configs['mqtt_broker'])
 		self.mqtt_client.DEBUG = True
 		self.mqtt_topic = configs['mqtt_topic']
@@ -36,7 +36,7 @@ class SwitchReader:
 	def init_timer(self):
 		self.deinit_timer()
 		self.timer = Timer(-1)
-		self.timer.init(period=int(self.switch_update_period*1000), mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
+		self.timer.init(period=self.switch_update_period, mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
 
 	def loop(self):
 		self.read_switch()
