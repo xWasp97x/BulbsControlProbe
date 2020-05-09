@@ -95,6 +95,7 @@ class Updater:
 		return True
 
 	def init_timer(self):
+		self.deinit_timer()
 		self.timer = Timer(-1)
 		self.timer.init(period=LOOP_RATE*1000, mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
 
@@ -230,13 +231,12 @@ class Updater:
 		return False
 
 	def wait_msg(self):
-		timeout = 3
-		tries = int(timeout/0.5)  # 100ms/try
+		timeout = 3  # seconds
 		self.logger.log('DEBUG', 'Updater', 'Waiting for message...')
-		i = 0
-		while i < tries and not self.message_read:
+		start = time.time()
+		while time.time()-start < timeout and not self.message_read:
 			self.mqtt_client.check_msg()
-			time.sleep(0.5)
+			time.sleep(0.1)
 		if not self.message_read:
 			self.logger.log('WARNING', 'Updater', 'Timeout waiting for message.')
 
