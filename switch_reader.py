@@ -12,7 +12,7 @@ class SwitchReader:
 		config_loader = ConfigurationLoader(config_file)
 		configs = config_loader.load_configuration('mqtt_broker', 'mqtt_topic', 'mqtt_id', 'switch_pin', 'switch_update_period')
 		self.config_file = config_file
-		self.switch_update_period = int(configs['switch_update_period'])
+		self.switch_update_period = float(configs['switch_update_period'])
 		self.mqtt_client = MQTTClient(configs['mqtt_id'], configs['mqtt_broker'])
 		self.mqtt_client.DEBUG = True
 		self.mqtt_topic = configs['mqtt_topic']
@@ -29,16 +29,22 @@ class SwitchReader:
 			self.logger.log('ERROR', self.id, 'Connection failure to {}'.format(self.mqtt_broker))
 		self.last_switch_position = self.switch_pin.value()
 		self.mqtt_messages_sent = 0
-		self.debounce_time = 1
+		self.debounce_time = 0.5
 		self.timer = None
 		self.init_timer()
 
 	def init_timer(self):
+		self.deinit_timer()
 		self.timer = Timer(-1)
-		self.timer.init(period=self.switch_update_period, mode=Timer.PERIODIC, callback=lambda t: self.read_switch())
+		self.timer.init(period=self.switch_update_period*1000, mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
+
+	def loop(self):
+		self.read_switch()
+		self.init_timer()
 
 	def deinit_timer(self):
-		self.timer.deinit()
+		if isinstance(self.timer, Timer):
+			self.timer.deinit()
 		self.timer = None
 
 	def read_switch(self):
@@ -47,8 +53,7 @@ class SwitchReader:
 			self.last_switch_position = switch_position
 			self.notify_hub()
 			self.deinit_timer()
-			sleep(self.debounce_time - self.switch_update_period)
-			self.init_timer()
+			sleep(self.debounce_time)
 
 	def notify_hub(self):
 		if not self._connected_to_broker():
