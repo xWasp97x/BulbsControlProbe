@@ -36,7 +36,7 @@ class SwitchReader:
 	def init_timer(self):
 		self.deinit_timer()
 		self.timer = Timer(-1)
-		self.timer.init(period=self.switch_update_period*1000, mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
+		self.timer.init(period=int(self.switch_update_period*1000), mode=Timer.ONE_SHOT, callback=lambda t: self.loop())
 
 	def loop(self):
 		self.read_switch()
